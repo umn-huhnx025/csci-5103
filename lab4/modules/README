@@ -1,0 +1,11 @@
+Compiling and Installing helloworld module
+-------------------------------------------
+Module: hello.ko
+Functionality: Writes "Hello, world" string in /proc/kmesg
+Procedure to install the module and test it:
+1. make
+2. sudo insmod ./hello.ko
+   This may ask you for your root password.
+3. Observe the messages written to /proc/kmesg using the following command:
+   dmesg 
+4. Remove using: sudo rmmod hello

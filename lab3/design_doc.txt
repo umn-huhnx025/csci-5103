@@ -1,0 +1,86 @@
+CSCI 5103
+Lab 3 Design Document
+
+rhein055 - Paul Rheinberger
+huhnx025 - Jon Huhn
+storl060 - Steven Storla
+
+COMPILE AND RUN
+We didn't change the compile or run process. All executables will be made with
+'make' and every program has its original name.
+
+NOTE
+We did not implement the updated mkdir.cc into our code.
+
+LINK/UNLINK
+The Kernel::Link() function's implementation is similar to the implementation of
+Kernel::creat(). As such, much of the code for Kernel::Link() is copied from the
+Kernel::creat() implementation. Both functions add an entry to the corresponding
+directory in the same way. The only difference in Kernel::Link() is that the
+number of links pointing to the file must be incremented and the underlying data
+blocks for the file are not created, since they were created when the target file
+was created. Kernel::Link() simply finds the inode number corresponding to the
+target file and points the new link's directory entry to it. Kernel::Unlink()
+is implemented in much the same way, except in reverse. It is important to note
+that once the number of links pointing to a file is zero, the data blocks for the
+file are freed. However, if the file is open when the last reference to the file
+is removed, the data blocks are freed once the file is closed by whichever
+program has it open.
+
+
+INDIRECT BLOCKS
+Most of the design was in the Filedescipter.cc's readblock and writeblock.
+
+-In the readblock, it first checks to see if the relative block is in the range
+which is (blocksize/8)+MAX_DIRECT_BLOCKS. Next, it checks to see if the
+relative adress is above 10, if it is, an 8 byte chunk is read, starting
+at the indirect blocks offset, using [(relativeBlockNumber-10)*8]. That value
+is then casted and used to check against the FileSystem::NOT_A_BLOCK.
+If it evaluates to false, it uses the value as an offset to read from.
+If the relative block is of size of MAX_DIRECT_BLOCKS, after some housekeeping
+it just returns because there is no bytes to be read seeing as the indirect block
+just keeps adresses. If the the value was below 10 it was just read out of the
+direct blocks.
+
+-In the writeblocks, it first checks to make sure it's in the same range of
+(blocksize/8)+MAX_DIRECT_BLOCKS. Next if the relative block is greater than
+or equal to MAX_DIRECT_BLOCKS, it first checks to see if it is MAX_DIRECT_BLOCKS.
+This is because the inidrect block might not be allocated. If it needs allocation
+it does so and also loops thorugh every 8 btyes and allocates the
+FileSystem::NOT_A_BLOCK value in a string form. If the relative block is greater
+than MAX_DIRECT_BLOCKS, an 8 byte chunk is read, starting at the indirect blocks
+offset using [(relativeBlockNumber-10)*8].That value is then casted and used to
+check against the FileSystem::NOT_A_BLOCK, this is to check to see if it's allocated,
+and if not, it is given an adress using fileSystem->allocateBlock(). That allocated
+block value is then writin on the indirect block starting at that relative offset
+using the [(relativeBlockNumber-10)*8] and the bytes are writien using that adress
+directly. If the the relative value was below 10 it just writes out of the direct
+blocks.
+
+-The last thing worth mentioning is that the cleanup in the kernel was altered.
+The allocated blocks uising the indirect block are still needed to be
+dealocated. In order to dealocate them, we need to read them off the indirect block
+and free them individaully. We also need to deallocate the direct blocks and the
+indirect block itself as well.
+
+
+FSCK
+The bulk of fsck's functionality comes from iterating over every inode and every
+file name in the file system. First, we create a new BitBlock that we will build
+up as we go to represent the free and allocated data blocks. Then, we iterate
+over every inode. We do this by calculating the maximum number of inodes that
+could be in the system in the same way that mkfs does. Then, for each number, we
+get the inode assoiated with that number. We assume that if an inode has no mode
+bits set, then it is not allocated and skip any checks on it. Otherwise, we
+count the number of links to the inode by recursively traversing all of the
+names in the file system and getting their associated inode numbers. If the
+inode and the actual count disagree, an error message is displayed. Then, we
+iterate over all of the blocks of the inode, marking allocated blocks
+accordingly in our new BitBlock. Finally, we iterate over the current free list
+and compare it with the one we created, reporting any differences. The return
+code of fsck represents the kinds of inconsistencies it encountered. Our
+implementation does not fix any of the errors, it only reports errors.
+
+
+DEFRAG
+We did not implement defrag.
